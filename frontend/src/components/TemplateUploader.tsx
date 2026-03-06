@@ -53,7 +53,7 @@ export default function TemplateUploader({ onUploaded }: Props) {
             Choose File
             <input
               type="file"
-              accept=".pptx,.potx"
+              accept=".pptx,.potx,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.presentationml.template"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
