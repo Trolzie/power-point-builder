@@ -13,8 +13,8 @@ export default function TemplateUploader({ onUploaded }: Props) {
   const [dragOver, setDragOver] = useState(false);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!file.name.endsWith(".pptx")) {
-      setError("Please upload a .pptx file");
+    if (!file.name.endsWith(".pptx") && !file.name.endsWith(".potx")) {
+      setError("Please upload a .pptx or .potx file");
       return;
     }
     setUploading(true);
@@ -47,13 +47,13 @@ export default function TemplateUploader({ onUploaded }: Props) {
         <p className="text-gray-500">Uploading...</p>
       ) : (
         <>
-          <p className="text-gray-600 mb-2">Drag & drop a .pptx template here</p>
+          <p className="text-gray-600 mb-2">Drag & drop a .pptx or .potx template here</p>
           <p className="text-gray-400 text-sm mb-4">or</p>
           <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
             Choose File
             <input
               type="file"
-              accept=".pptx"
+              accept=".pptx,.potx"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];

@@ -22,12 +22,13 @@ def _validate_id(id_str: str) -> str:
 @router.post("/upload", response_model=TemplateManifest)
 async def upload_template(file: UploadFile):
     """Upload a .pptx template, parse it, and return its manifest."""
-    if not file.filename or not file.filename.endswith(".pptx"):
-        raise HTTPException(status_code=400, detail="File must be a .pptx file")
+    if not file.filename or not (file.filename.endswith(".pptx") or file.filename.endswith(".potx")):
+        raise HTTPException(status_code=400, detail="File must be a .pptx or .potx file")
 
     template_id = uuid4().hex[:12]
+    ext = Path(file.filename).suffix  # .pptx or .potx
     templates_dir = Path(settings.TEMPLATES_DIR)
-    template_path = templates_dir / f"{template_id}.pptx"
+    template_path = templates_dir / f"{template_id}{ext}"
 
     content = await file.read()
     template_path.write_bytes(content)
@@ -52,7 +53,9 @@ async def list_templates():
     """List all uploaded templates."""
     templates_dir = Path(settings.TEMPLATES_DIR)
     items = []
-    for pptx_file in sorted(templates_dir.glob("*.pptx")):
+    for pptx_file in sorted(
+        list(templates_dir.glob("*.pptx")) + list(templates_dir.glob("*.potx"))
+    ):
         template_id = pptx_file.stem
         items.append(TemplateListItem(template_id=template_id, filename=pptx_file.name))
     return TemplateListResponse(templates=items)
@@ -73,13 +76,15 @@ async def delete_template(template_id: str):
     """Delete a template and its manifest."""
     _validate_id(template_id)
     templates_dir = Path(settings.TEMPLATES_DIR)
-    template_path = templates_dir / f"{template_id}.pptx"
+    pptx_path = templates_dir / f"{template_id}.pptx"
+    potx_path = templates_dir / f"{template_id}.potx"
     manifest_path = templates_dir / f"{template_id}.json"
 
-    if not template_path.exists() and not manifest_path.exists():
+    if not pptx_path.exists() and not potx_path.exists() and not manifest_path.exists():
         raise HTTPException(status_code=404, detail="Template not found")
 
-    template_path.unlink(missing_ok=True)
+    pptx_path.unlink(missing_ok=True)
+    potx_path.unlink(missing_ok=True)
     manifest_path.unlink(missing_ok=True)
 
     return {"detail": "Template deleted"}
