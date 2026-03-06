@@ -28,3 +28,8 @@ app.add_middleware(
 app.include_router(templates.router)
 app.include_router(generate.router)
 app.include_router(presentations.router)
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": "2"}
