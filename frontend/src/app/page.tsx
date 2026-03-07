@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import TemplateUploader from "@/components/TemplateUploader";
 import TopicInput from "@/components/TopicInput";
 import OutlineEditor from "@/components/OutlineEditor";
 import QualityReportComponent from "@/components/QualityReport";
 import { TemplateManifest, PresentationContent, QualityReport, GeneratePresentationResponse } from "@/types";
-import { generateOutline, generatePresentation, getDownloadUrl } from "@/lib/api";
+import { generateOutline, generatePresentation, getDownloadUrl, listPresentations, deletePresentation } from "@/lib/api";
 
 type Step = "upload" | "topic" | "outline" | "generating" | "done";
 
@@ -19,6 +19,31 @@ export default function Home() {
   const [repairedQualityReport, setRepairedQualityReport] = useState<QualityReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedFiles, setSavedFiles] = useState<{ presentation_id: string; filename: string }[]>([]);
+  const [showFiles, setShowFiles] = useState(false);
+
+  const refreshFiles = useCallback(async () => {
+    try {
+      const result = await listPresentations();
+      setSavedFiles(result.presentations);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showFiles) refreshFiles();
+  }, [showFiles, refreshFiles]);
+
+  const handleDeleteFile = async (id: string) => {
+    await deletePresentation(id);
+    setSavedFiles((prev) => prev.filter((f) => f.presentation_id !== id));
+  };
+
+  const handleDeleteAll = async () => {
+    await Promise.all(savedFiles.map((f) => deletePresentation(f.presentation_id)));
+    setSavedFiles([]);
+  };
 
   const handleTemplateUploaded = (manifest: TemplateManifest) => {
     setTemplate(manifest);
@@ -195,6 +220,53 @@ export default function Home() {
           )}
         </div>
       )}
+      {/* File Manager */}
+      <div className="border-t border-gray-200 pt-6">
+        <button
+          onClick={() => setShowFiles(!showFiles)}
+          className="text-sm text-gray-400 hover:text-gray-600"
+        >
+          {showFiles ? "Hide saved files" : "Manage saved files"}
+        </button>
+        {showFiles && (
+          <div className="mt-3 space-y-2">
+            {savedFiles.length === 0 ? (
+              <p className="text-sm text-gray-400">No saved presentations on server.</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-500">{savedFiles.length} file{savedFiles.length !== 1 ? "s" : ""} on server</p>
+                  <button
+                    onClick={handleDeleteAll}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    Delete all
+                  </button>
+                </div>
+                {savedFiles.map((f) => (
+                  <div key={f.presentation_id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
+                    <span className="text-sm text-gray-600 font-mono">{f.presentation_id}</span>
+                    <div className="flex gap-3">
+                      <a
+                        href={getDownloadUrl(f.presentation_id)}
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                      >
+                        Download
+                      </a>
+                      <button
+                        onClick={() => handleDeleteFile(f.presentation_id)}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

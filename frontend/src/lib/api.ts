@@ -65,3 +65,14 @@ export async function generatePresentation(
 export function getDownloadUrl(presentationId: string): string {
   return `${API_BASE}/api/presentations/${presentationId}/download`;
 }
+
+export async function listPresentations(): Promise<{ presentations: { presentation_id: string; filename: string }[] }> {
+  const res = await fetch(`${API_BASE}/api/presentations`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function deletePresentation(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/presentations/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await res.text());
+}

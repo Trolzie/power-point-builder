@@ -92,7 +92,7 @@ def _cleanup_temp_images(temp_paths: list[str]) -> None:
             logger.warning("Failed to clean up temp image %s: %s", path, e)
 
 
-_STALE_AGE_SECONDS = 3600  # 1 hour
+_STALE_AGE_SECONDS = 600  # 10 minutes
 
 
 def _purge_stale_outputs() -> None:
