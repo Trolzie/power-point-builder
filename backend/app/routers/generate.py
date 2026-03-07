@@ -66,4 +66,8 @@ async def create_presentation(request: GeneratePresentationRequest):
     return GeneratePresentationResponse(
         presentation_id=result["presentation_id"],
         filename=result["filename"],
+        quality_report=result.get("quality_report"),
+        repaired_id=result.get("repaired_id"),
+        repaired_filename=result.get("repaired_filename"),
+        repaired_quality_report=result.get("repaired_quality_report"),
     )

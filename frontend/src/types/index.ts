@@ -59,7 +59,36 @@ export interface TemplateListItem {
   filename: string;
 }
 
+export interface QualityIssue {
+  severity: "info" | "warning" | "error";
+  category: string;
+  message: string;
+  suggestion: string | null;
+  slide_index: number | null;
+  placeholder_idx: number | null;
+}
+
+export interface SlideQuality {
+  slide_index: number;
+  layout_name: string;
+  utilization_pct: number;
+  issues: QualityIssue[];
+}
+
+export interface QualityReport {
+  overall_score: number;
+  summary: string;
+  total_issues: number;
+  issues_by_severity: Record<string, number>;
+  slides: SlideQuality[];
+  llm_analysis: string | null;
+}
+
 export interface GeneratePresentationResponse {
   presentation_id: string;
   filename: string;
+  quality_report: QualityReport | null;
+  repaired_id: string | null;
+  repaired_filename: string | null;
+  repaired_quality_report: QualityReport | null;
 }

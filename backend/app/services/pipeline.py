@@ -10,7 +10,8 @@ from openai import OpenAI
 from app.config import settings
 from app.models.presentation import PresentationContent
 from app.models.template import TemplateManifest
-from app.services.content_generator import generate_outline, generate_slide_content
+from app.services.content_generator import generate_outline, generate_slide_content, repair_slide_content
+from app.services.quality_analyzer import analyze_quality
 from app.services.slide_assembler import assemble_presentation
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,24 @@ def _cleanup_temp_images(temp_paths: list[str]) -> None:
             logger.warning("Failed to clean up temp image %s: %s", path, e)
 
 
+def _has_fixable_issues(report) -> bool:
+    """Check if a quality report has error or warning level issues."""
+    return (report.issues_by_severity.get("error", 0) + report.issues_by_severity.get("warning", 0)) > 0
+
+
+async def _build_and_assemble(
+    template_path: str, content: PresentationContent, presentation_id: str
+) -> None:
+    """Generate images and assemble a presentation file."""
+    filename = f"{presentation_id}.pptx"
+    output_path = str(Path(settings.OUTPUT_DIR) / filename)
+    temp_paths = await _generate_images(content)
+    try:
+        assemble_presentation(template_path, content, output_path)
+    finally:
+        _cleanup_temp_images(temp_paths)
+
+
 async def run_pipeline(template_id: str, topic: str, num_slides: int) -> dict:
     """Orchestrate the full presentation generation pipeline."""
     manifest = _load_manifest(template_id)
@@ -101,20 +120,37 @@ async def run_pipeline(template_id: str, topic: str, num_slides: int) -> dict:
     # Generate detailed content
     content = await asyncio.to_thread(generate_slide_content, topic, outline, manifest)
 
-    # Generate images for PICTURE placeholders
-    temp_paths = await _generate_images(content)
+    # Analyze quality before assembly
+    initial_report = analyze_quality(content, manifest)
+    logger.info("Initial quality score: %.1f (%d issues)", initial_report.overall_score, initial_report.total_issues)
 
-    # Assemble the presentation
-    presentation_id = uuid4().hex[:12]
-    filename = f"{presentation_id}.pptx"
-    output_path = str(Path(settings.OUTPUT_DIR) / filename)
+    # Always build the original version
+    original_id = uuid4().hex[:12]
+    await _build_and_assemble(template_path, content, original_id)
 
-    try:
-        assemble_presentation(template_path, content, output_path)
-    finally:
-        _cleanup_temp_images(temp_paths)
+    # Repair pass if there are fixable issues
+    repaired_id = None
+    repaired_report = None
+    if _has_fixable_issues(initial_report):
+        logger.info("Repairing content (%d errors, %d warnings)...",
+                     initial_report.issues_by_severity.get("error", 0),
+                     initial_report.issues_by_severity.get("warning", 0))
+        repaired_content = await asyncio.to_thread(
+            repair_slide_content, topic, content, initial_report, manifest
+        )
+        repaired_report = analyze_quality(repaired_content, manifest)
+        logger.info("Repaired quality score: %.1f (%d issues)", repaired_report.overall_score, repaired_report.total_issues)
+        repaired_id = uuid4().hex[:12]
+        await _build_and_assemble(template_path, repaired_content, repaired_id)
 
-    return {"presentation_id": presentation_id, "filename": filename}
+    return {
+        "presentation_id": original_id,
+        "filename": f"{original_id}.pptx",
+        "quality_report": initial_report,
+        "repaired_id": repaired_id,
+        "repaired_filename": f"{repaired_id}.pptx" if repaired_id else None,
+        "repaired_quality_report": repaired_report,
+    }
 
 
 async def run_pipeline_from_outline(
@@ -123,23 +159,41 @@ async def run_pipeline_from_outline(
     """Run the pipeline starting from a provided outline (skip outline generation)."""
     manifest = _load_manifest(template_id)
     template_path = str(Path(settings.TEMPLATES_DIR) / manifest.filename)
+    topic = outline.title
 
     # Generate detailed content from the outline
     content = await asyncio.to_thread(
-        generate_slide_content, outline.title, outline, manifest
+        generate_slide_content, topic, outline, manifest
     )
 
-    # Generate images for PICTURE placeholders
-    temp_paths = await _generate_images(content)
+    # Analyze quality before assembly
+    initial_report = analyze_quality(content, manifest)
+    logger.info("Initial quality score: %.1f (%d issues)", initial_report.overall_score, initial_report.total_issues)
 
-    # Assemble the presentation
-    presentation_id = uuid4().hex[:12]
-    filename = f"{presentation_id}.pptx"
-    output_path = str(Path(settings.OUTPUT_DIR) / filename)
+    # Always build the original version
+    original_id = uuid4().hex[:12]
+    await _build_and_assemble(template_path, content, original_id)
 
-    try:
-        assemble_presentation(template_path, content, output_path)
-    finally:
-        _cleanup_temp_images(temp_paths)
+    # Repair pass if there are fixable issues
+    repaired_id = None
+    repaired_report = None
+    if _has_fixable_issues(initial_report):
+        logger.info("Repairing content (%d errors, %d warnings)...",
+                     initial_report.issues_by_severity.get("error", 0),
+                     initial_report.issues_by_severity.get("warning", 0))
+        repaired_content = await asyncio.to_thread(
+            repair_slide_content, topic, content, initial_report, manifest
+        )
+        repaired_report = analyze_quality(repaired_content, manifest)
+        logger.info("Repaired quality score: %.1f (%d issues)", repaired_report.overall_score, repaired_report.total_issues)
+        repaired_id = uuid4().hex[:12]
+        await _build_and_assemble(template_path, repaired_content, repaired_id)
 
-    return {"presentation_id": presentation_id, "filename": filename}
+    return {
+        "presentation_id": original_id,
+        "filename": f"{original_id}.pptx",
+        "quality_report": initial_report,
+        "repaired_id": repaired_id,
+        "repaired_filename": f"{repaired_id}.pptx" if repaired_id else None,
+        "repaired_quality_report": repaired_report,
+    }

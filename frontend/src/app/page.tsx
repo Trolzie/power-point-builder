@@ -3,7 +3,8 @@ import { useState } from "react";
 import TemplateUploader from "@/components/TemplateUploader";
 import TopicInput from "@/components/TopicInput";
 import OutlineEditor from "@/components/OutlineEditor";
-import { TemplateManifest, PresentationContent } from "@/types";
+import QualityReportComponent from "@/components/QualityReport";
+import { TemplateManifest, PresentationContent, QualityReport, GeneratePresentationResponse } from "@/types";
 import { generateOutline, generatePresentation, getDownloadUrl } from "@/lib/api";
 
 type Step = "upload" | "topic" | "outline" | "generating" | "done";
@@ -13,6 +14,9 @@ export default function Home() {
   const [template, setTemplate] = useState<TemplateManifest | null>(null);
   const [outline, setOutline] = useState<PresentationContent | null>(null);
   const [presentationId, setPresentationId] = useState<string | null>(null);
+  const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);
+  const [repairedId, setRepairedId] = useState<string | null>(null);
+  const [repairedQualityReport, setRepairedQualityReport] = useState<QualityReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +47,9 @@ export default function Home() {
     try {
       const result = await generatePresentation(template.template_id, outline);
       setPresentationId(result.presentation_id);
+      setQualityReport(result.quality_report ?? null);
+      setRepairedId(result.repaired_id ?? null);
+      setRepairedQualityReport(result.repaired_quality_report ?? null);
       setStep("done");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to generate presentation");
@@ -55,6 +62,9 @@ export default function Home() {
     setTemplate(null);
     setOutline(null);
     setPresentationId(null);
+    setQualityReport(null);
+    setRepairedId(null);
+    setRepairedQualityReport(null);
     setError(null);
   };
 
@@ -145,12 +155,29 @@ export default function Home() {
           <div className="text-green-500 text-4xl mb-4">&#10003;</div>
           <h2 className="text-lg font-semibold mb-2">Presentation Ready!</h2>
           <div className="flex justify-center gap-4 mt-6">
-            <a
-              href={getDownloadUrl(presentationId)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Download .pptx
-            </a>
+            {repairedId ? (
+              <>
+                <a
+                  href={getDownloadUrl(repairedId)}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Download Repaired .pptx
+                </a>
+                <a
+                  href={getDownloadUrl(presentationId)}
+                  className="border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Download Original .pptx
+                </a>
+              </>
+            ) : (
+              <a
+                href={getDownloadUrl(presentationId)}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Download .pptx
+              </a>
+            )}
             <button
               onClick={handleReset}
               className="border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
@@ -158,6 +185,14 @@ export default function Home() {
               Create Another
             </button>
           </div>
+          {repairedId && qualityReport && repairedQualityReport ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+              <QualityReportComponent report={qualityReport} label="Original" />
+              <QualityReportComponent report={repairedQualityReport} label="Repaired" />
+            </div>
+          ) : (
+            qualityReport && <QualityReportComponent report={qualityReport} />
+          )}
         </div>
       )}
     </div>

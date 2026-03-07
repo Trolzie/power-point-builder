@@ -10,6 +10,7 @@ from app.models.presentation import (
     PresentationContent,
     SlideContent,
 )
+from app.models.quality import QualityReport
 from app.models.template import TemplateManifest
 
 logger = logging.getLogger(__name__)
@@ -328,3 +329,75 @@ def generate_slide_content(
     content = response.choices[0].message.content
     logger.info("Content response: %s", content[:500])
     return _parse_json_response(content)
+
+
+def _build_issues_description(report: QualityReport) -> str:
+    """Build a human-readable description of quality issues for the repair prompt."""
+    lines = []
+    for slide_q in report.slides:
+        actionable = [
+            issue for issue in slide_q.issues
+            if issue.severity.value in ("error", "warning")
+        ]
+        if not actionable:
+            continue
+        lines.append(f"Slide {slide_q.slide_index + 1} (\"{slide_q.layout_name}\" layout):")
+        for issue in actionable:
+            suggestion = f" -> {issue.suggestion}" if issue.suggestion else ""
+            lines.append(f"  - {issue.severity.value.upper()}: {issue.message}{suggestion}")
+    return "\n".join(lines)
+
+
+def repair_slide_content(
+    topic: str,
+    content: PresentationContent,
+    quality_report: QualityReport,
+    manifest: TemplateManifest,
+) -> PresentationContent:
+    """Repair quality issues in generated content using a targeted GPT-4o call."""
+    issues_desc = _build_issues_description(quality_report)
+    if not issues_desc:
+        return content
+
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    layout_desc = _build_layout_description(manifest)
+    content_json = content.model_dump_json(indent=2)
+    example = _build_example()
+
+    system_prompt = (
+        "You are fixing quality issues in a generated presentation. "
+        "Your job is to repair ONLY the listed issues while keeping everything else unchanged.\n\n"
+        "You MUST respond with ONLY valid JSON matching the exact format shown in the example below. "
+        "No markdown, no explanation, just JSON.\n\n"
+        f"ISSUES FOUND:\n{issues_desc}\n\n"
+        f"AVAILABLE LAYOUTS:\n{layout_desc}\n\n"
+        "RULES:\n"
+        "- Fix the listed issues. Fill empty placeholders with relevant content.\n"
+        "- For empty BODY placeholders: add substantive content (statistics, examples, key points).\n"
+        "- For PICTURE placeholders without image_prompt: add a descriptive image generation prompt.\n"
+        "- For overflow issues: shorten the text to fit within the max_words constraint.\n"
+        "- For long titles: shorten to 6-8 words.\n"
+        "- Respect max_words constraints shown in the layout descriptions.\n"
+        "- Keep all unchanged slides and placeholders exactly as they are.\n"
+        "- Return the COMPLETE presentation JSON with all slides.\n\n"
+        f"EXAMPLE OUTPUT FORMAT:\n{example}"
+    )
+
+    user_prompt = (
+        f"Topic: {topic}\n\n"
+        f"CURRENT CONTENT:\n{content_json}\n\n"
+        "Fix the listed quality issues. Return the complete presentation JSON with repairs applied."
+    )
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+
+    result = response.choices[0].message.content
+    logger.info("Repair response: %s", result[:500])
+    return _parse_json_response(result)
