@@ -19,6 +19,16 @@ def _qn(tag: str) -> str:
 
 def _fill_placeholder(placeholder, content: PlaceholderContent) -> None:
     """Fill a placeholder with content while preserving formatting."""
+    if content.type == "image" and content.image_path:
+        if hasattr(placeholder, 'insert_picture'):
+            placeholder.insert_picture(content.image_path)
+        else:
+            logger.warning(
+                "Placeholder '%s' is not a picture placeholder, skipping image",
+                placeholder.name,
+            )
+        return
+
     if content.type != "text" or not content.paragraphs:
         return
 

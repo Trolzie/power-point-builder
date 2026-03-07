@@ -55,8 +55,8 @@ async def create_presentation(request: GeneratePresentationRequest):
     _load_manifest(request.template_id)
 
     try:
-        result = await asyncio.to_thread(
-            run_pipeline_from_outline, request.template_id, request.outline
+        result = await run_pipeline_from_outline(
+            request.template_id, request.outline
         )
     except Exception as e:
         raise HTTPException(

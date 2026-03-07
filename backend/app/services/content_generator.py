@@ -144,6 +144,10 @@ def _build_example() -> str:
                             {"text": "Sub-point detail", "level": 1},
                             {"text": "Second bullet point", "level": 0}
                         ]
+                    },
+                    "2": {
+                        "type": "image",
+                        "image_prompt": "Professional photo of a diverse team collaborating in a modern office"
                     }
                 },
                 "speaker_notes": "Key talking points here."
@@ -225,8 +229,9 @@ def generate_outline(
         "- layout_index values MUST match one of the available layout indices above.\n"
         "- Placeholder keys in the 'placeholders' dict MUST be string versions of the idx values "
         "from that layout's placeholders (e.g., \"0\", \"1\").\n"
-        "- Each placeholder value MUST be an object with 'type' (always \"text\") and 'paragraphs' (array).\n"
-        "- Each paragraph MUST have 'text' (string) and 'level' (integer, 0=main, 1=sub-point).\n"
+        "- Each placeholder value MUST be an object with 'type' (\"text\" for text placeholders, \"image\" for PICTURE placeholders).\n"
+        "- For text placeholders: include 'paragraphs' (array). Each paragraph MUST have 'text' (string) and 'level' (integer, 0=main, 1=sub-point).\n"
+        "- For PICTURE type placeholders: use type=\"image\" with an 'image_prompt' (descriptive, detailed prompt for image generation). No paragraphs needed.\n"
         "- Only use placeholder idx values that exist in the chosen layout.\n"
         "- Include 'speaker_notes' for each slide.\n"
         "- Choose layouts that best fit the content.\n\n"
@@ -285,8 +290,9 @@ def generate_slide_content(
         "RULES:\n"
         "- Keep the same layout_index choices from the outline.\n"
         "- Placeholder keys MUST be string versions of the idx values (e.g., \"0\", \"1\").\n"
-        "- Each placeholder value MUST be an object with 'type' and 'paragraphs'.\n"
-        "- Expand bullet points into clear, engaging content.\n"
+        "- Each placeholder value MUST be an object with 'type' (\"text\" for text placeholders, \"image\" for PICTURE placeholders).\n"
+        "- For text placeholders: include 'paragraphs'. Expand bullet points into clear, engaging content.\n"
+        "- For PICTURE type placeholders: use type=\"image\" with an 'image_prompt' (descriptive, detailed prompt for image generation). No paragraphs needed.\n"
         "- Add speaker_notes for each slide with talking points.\n"
         "- Use bold: true for emphasis on key terms.\n"
         "- Use paragraph levels (0 = main point, 1 = sub-point) for hierarchy.\n\n"

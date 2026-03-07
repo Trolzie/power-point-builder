@@ -25,10 +25,17 @@ function addSlide(outline: PresentationContent, layout: LayoutInfo): Presentatio
   const placeholders: Record<string, import("@/types").PlaceholderContent> = {};
   for (const ph of layout.placeholders) {
     if (FILTERED_TYPES.includes(ph.type)) continue;
-    placeholders[String(ph.idx)] = {
-      type: "text",
-      paragraphs: [{ text: "" }],
-    };
+    if (ph.type === "PICTURE") {
+      placeholders[String(ph.idx)] = {
+        type: "image",
+        image_prompt: "",
+      };
+    } else {
+      placeholders[String(ph.idx)] = {
+        type: "text",
+        paragraphs: [{ text: "" }],
+      };
+    }
   }
   const newSlide: SlideContent = {
     layout_index: layout.index,
@@ -44,6 +51,12 @@ export default function OutlineEditor({ outline, onChange, layouts }: Props) {
   const updateParagraphText = (slideIndex: number, phIdx: string, paraIndex: number, text: string) => {
     const updated = structuredClone(outline);
     updated.slides[slideIndex].placeholders[phIdx].paragraphs![paraIndex].text = text;
+    onChange(updated);
+  };
+
+  const updateImagePrompt = (slideIndex: number, phIdx: string, prompt: string) => {
+    const updated = structuredClone(outline);
+    updated.slides[slideIndex].placeholders[phIdx].image_prompt = prompt;
     onChange(updated);
   };
 
@@ -91,16 +104,31 @@ export default function OutlineEditor({ outline, onChange, layouts }: Props) {
           </div>
           {Object.entries(slide.placeholders).map(([idx, ph]) => (
             <div key={idx} className="ml-2">
-              {ph.paragraphs?.map((p, j) => (
-                <input
-                  key={j}
-                  type="text"
-                  value={p.text}
-                  onChange={(e) => updateParagraphText(i, idx, j, e.target.value)}
-                  className={`text-sm w-full bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none rounded px-1 py-0.5 transition-colors ${p.level && p.level > 0 ? "ml-4 text-gray-500" : "text-gray-700"} ${p.bold ? "font-semibold" : ""}`}
-                  placeholder="Enter text..."
-                />
-              ))}
+              {ph.type === "image" ? (
+                <div className="flex items-start gap-2">
+                  <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-1 shrink-0">
+                    Image
+                  </span>
+                  <textarea
+                    value={ph.image_prompt ?? ""}
+                    onChange={(e) => updateImagePrompt(i, idx, e.target.value)}
+                    rows={2}
+                    className="text-sm w-full bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none rounded px-1 py-0.5 transition-colors text-gray-700 resize-none"
+                    placeholder="Describe the image..."
+                  />
+                </div>
+              ) : (
+                ph.paragraphs?.map((p, j) => (
+                  <input
+                    key={j}
+                    type="text"
+                    value={p.text}
+                    onChange={(e) => updateParagraphText(i, idx, j, e.target.value)}
+                    className={`text-sm w-full bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none rounded px-1 py-0.5 transition-colors ${p.level && p.level > 0 ? "ml-4 text-gray-500" : "text-gray-700"} ${p.bold ? "font-semibold" : ""}`}
+                    placeholder="Enter text..."
+                  />
+                ))
+              )}
             </div>
           ))}
         </div>
