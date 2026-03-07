@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 MODEL = "gpt-4o"
 
-_SKIP_PLACEHOLDER_TYPES = {"DATE", "FOOTER", "SLIDE_NUMBER", "HEADER"}
+_SKIP_PLACEHOLDER_TYPES = {"DATE", "FOOTER", "SLIDE_NUMBER", "HEADER", "CHART", "TABLE", "VERTICAL_OBJECT", "VERTICAL_BODY"}
 
 
 EMU_PER_INCH = 914400
@@ -39,7 +39,7 @@ def _build_layout_description(manifest: TemplateManifest) -> str:
                 ph for ph in layout.placeholders
                 if ph.type not in _SKIP_PLACEHOLDER_TYPES
             ]
-            if not content_phs:
+            if not content_phs or len(content_phs) > 8:
                 continue
             ph_desc = []
             for ph in content_phs:
@@ -60,7 +60,7 @@ def _build_layout_description(manifest: TemplateManifest) -> str:
                     parts.append(f"font_size={ph.default_font_size_pt:.0f}pt")
                 ph_desc.append(f"  - {', '.join(parts)}")
             lines.append(
-                f"Layout index {layout.index}: \"{layout.name}\"\n"
+                f"Layout index {layout.index}: \"{layout.name}\" ({len(content_phs)} content placeholders)\n"
                 f"  Placeholders:\n" + "\n".join(ph_desc)
             )
     return "\n\n".join(lines)
@@ -235,7 +235,8 @@ def generate_outline(
         "- For PICTURE type placeholders: use type=\"image\" with an 'image_prompt' (descriptive, detailed prompt for image generation). No paragraphs needed.\n"
         "- Only use placeholder idx values that exist in the chosen layout.\n"
         "- Include 'speaker_notes' for each slide.\n"
-        "- Choose layouts that best fit the content.\n\n"
+        "- Choose layouts that best fit the content.\n"
+        "- PREFER layouts with 2-5 content placeholders. Avoid layouts with more than 6 unless the content truly requires it.\n\n"
         "CONTENT DENSITY RULES:\n"
         "- TITLE/CENTER_TITLE placeholders: 1-8 words. Short and punchy, no periods.\n"
         "- SUBTITLE placeholders: 5-20 words. One sentence max.\n"

@@ -6,7 +6,7 @@ from app.models.template import LayoutInfo, PlaceholderInfo, TemplateManifest
 
 logger = logging.getLogger(__name__)
 
-_SKIP_PLACEHOLDER_TYPES = {"DATE", "FOOTER", "SLIDE_NUMBER", "HEADER"}
+_SKIP_PLACEHOLDER_TYPES = {"DATE", "FOOTER", "SLIDE_NUMBER", "HEADER", "CHART", "TABLE", "VERTICAL_OBJECT", "VERTICAL_BODY"}
 
 
 def _build_layout_map(manifest: TemplateManifest) -> dict[int, LayoutInfo]:
