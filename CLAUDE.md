@@ -1,6 +1,6 @@
 # PowerPoint Builder
 
-AI-powered web app: upload a .pptx template, enter a topic, get a generated presentation.
+AI-powered web app: upload a .pptx or .potx template, enter a topic, get a generated presentation.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ frontend/
   src/
     app/page.tsx           # Main wizard: upload -> topic -> outline -> generate -> download
     components/
-      TemplateUploader.tsx  # Drag-and-drop .pptx upload
+      TemplateUploader.tsx  # Drag-and-drop .pptx/.potx upload
       TopicInput.tsx        # Topic + slide count input
       OutlineEditor.tsx     # Read-only outline display (editable in future)
     lib/api.ts             # API client (uses NEXT_PUBLIC_API_URL)
@@ -57,6 +57,7 @@ frontend/
 - **Existing slides removed** — Template slides are deleted before adding generated ones, preserving only layouts/masters.
 - **Path traversal protection** — All user-supplied IDs validated with regex `^[a-zA-Z0-9_-]+$`.
 - **Async thread offloading** — Blocking OpenAI calls wrapped in `asyncio.to_thread()` to avoid blocking the event loop.
+- **.potx conversion** — python-pptx can't open `.potx` files (different content type in `[Content_Types].xml`). On upload, `.potx` files are converted by patching the content type from `template.main+xml` to `presentation.main+xml` inside the zip, then saved as `.pptx`.
 
 ## Deployment
 
@@ -89,7 +90,7 @@ cd frontend && npm install && npm run dev
 ## Conventions
 
 - Backend IDs: `uuid4().hex[:12]`
-- Templates stored as `{id}.pptx` + `{id}.json` (manifest) in TEMPLATES_DIR
+- Templates stored as `{id}.pptx` + `{id}.json` (manifest) in TEMPLATES_DIR (`.potx` uploads converted to `.pptx` on ingest)
 - Generated files stored as `{id}.pptx` in OUTPUT_DIR
 - All API routes prefixed with `/api/`
 - Frontend uses `@/` path alias mapping to `src/`
