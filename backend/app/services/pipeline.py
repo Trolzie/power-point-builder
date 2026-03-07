@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import tempfile
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -91,6 +92,24 @@ def _cleanup_temp_images(temp_paths: list[str]) -> None:
             logger.warning("Failed to clean up temp image %s: %s", path, e)
 
 
+_STALE_AGE_SECONDS = 3600  # 1 hour
+
+
+def _purge_stale_outputs() -> None:
+    """Delete output .pptx files older than the stale threshold to free disk space."""
+    output_dir = Path(settings.OUTPUT_DIR)
+    if not output_dir.exists():
+        return
+    cutoff = time.time() - _STALE_AGE_SECONDS
+    for f in output_dir.glob("*.pptx"):
+        try:
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+                logger.info("Purged stale output: %s", f.name)
+        except OSError:
+            pass
+
+
 def _has_fixable_issues(report) -> bool:
     """Check if a quality report has error or warning level issues."""
     return (report.issues_by_severity.get("error", 0) + report.issues_by_severity.get("warning", 0)) > 0
@@ -111,6 +130,7 @@ async def _build_and_assemble(
 
 async def run_pipeline(template_id: str, topic: str, num_slides: int) -> dict:
     """Orchestrate the full presentation generation pipeline."""
+    _purge_stale_outputs()
     manifest = _load_manifest(template_id)
     template_path = str(Path(settings.TEMPLATES_DIR) / manifest.filename)
 
@@ -157,6 +177,7 @@ async def run_pipeline_from_outline(
     template_id: str, outline: PresentationContent
 ) -> dict:
     """Run the pipeline starting from a provided outline (skip outline generation)."""
+    _purge_stale_outputs()
     manifest = _load_manifest(template_id)
     template_path = str(Path(settings.TEMPLATES_DIR) / manifest.filename)
     topic = outline.title
