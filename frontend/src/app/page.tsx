@@ -62,7 +62,7 @@ export default function Home() {
     <div className="space-y-8">
       {/* Progress indicator */}
       <div className="flex items-center gap-2 text-sm">
-        {["Upload Template", "Enter Topic", "Review Outline", "Download"].map((label, i) => {
+        {["Upload Template", "Enter Topic", "Edit Outline", "Download"].map((label, i) => {
           const steps: Step[] = ["upload", "topic", "outline", "done"];
           const stepIndex = steps.indexOf(step === "generating" ? "outline" : step);
           const isActive = i <= stepIndex;
@@ -106,7 +106,7 @@ export default function Home() {
       {step === "outline" && outline && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Review Outline</h2>
+            <h2 className="text-lg font-semibold">Edit Outline</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setStep("topic")}
@@ -122,7 +122,11 @@ export default function Home() {
               </button>
             </div>
           </div>
-          <OutlineEditor outline={outline} />
+          <OutlineEditor
+            outline={outline}
+            onChange={setOutline}
+            layouts={template?.masters.flatMap(m => m.layouts) ?? []}
+          />
         </div>
       )}
 
