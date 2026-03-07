@@ -9,6 +9,15 @@ class PlaceholderInfo(BaseModel):
     top: int | None = None
     width: int | None = None
     height: int | None = None
+    # Default formatting extracted from template
+    default_font_name: str | None = None
+    default_font_size_pt: float | None = None
+    default_font_color: str | None = None
+    default_font_bold: bool | None = None
+    default_alignment: str | None = None
+    # Estimated content capacity
+    estimated_max_lines: int | None = None
+    estimated_max_words: int | None = None
 
 
 class LayoutInfo(BaseModel):

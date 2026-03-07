@@ -9,6 +9,57 @@ from app.models.template import (
     TemplateManifest,
 )
 
+EMU_PER_PT = 12700
+AVG_CHARS_PER_WORD = 5.5
+
+
+def _extract_placeholder_formatting(ph) -> dict:
+    """Extract default font formatting from a placeholder's first paragraph/run."""
+    result = {}
+    try:
+        tf = ph.text_frame
+        if not tf.paragraphs:
+            return result
+
+        first_para = tf.paragraphs[0]
+
+        if first_para.alignment is not None:
+            result["default_alignment"] = str(first_para.alignment).split(".")[-1]
+
+        if first_para.runs:
+            font = first_para.runs[0].font
+            if font.name:
+                result["default_font_name"] = font.name
+            if font.size is not None:
+                result["default_font_size_pt"] = font.size.pt
+            if font.bold is not None:
+                result["default_font_bold"] = font.bold
+            try:
+                if font.color and font.color.rgb:
+                    result["default_font_color"] = str(font.color.rgb)
+            except (AttributeError, TypeError):
+                pass
+    except Exception:
+        pass
+    return result
+
+
+def _estimate_capacity(width_emu, height_emu, font_size_pt, line_spacing=1.15):
+    """Estimate how many lines/words fit in a placeholder."""
+    if not all([width_emu, height_emu, font_size_pt]):
+        return None, None
+
+    font_size_emu = font_size_pt * EMU_PER_PT
+    line_height = font_size_emu * line_spacing
+
+    max_lines = max(1, int(height_emu / line_height))
+    avg_char_width = font_size_emu * 0.55
+    chars_per_line = int(width_emu / avg_char_width) if avg_char_width > 0 else 50
+    max_words = max(1, int((max_lines * chars_per_line) / AVG_CHARS_PER_WORD))
+
+    return max_lines, max_words
+
+
 def _placeholder_type_str(ph_type) -> str:
     """Convert placeholder type enum to string."""
     if ph_type is None:
@@ -65,6 +116,11 @@ def parse_template(file_path: str, template_id: str | None = None) -> TemplateMa
         for layout_idx, layout in enumerate(master.slide_layouts):
             placeholders: list[PlaceholderInfo] = []
             for ph in layout.placeholders:
+                fmt = _extract_placeholder_formatting(ph)
+                font_size = fmt.get("default_font_size_pt")
+                max_lines, max_words = _estimate_capacity(
+                    ph.width, ph.height, font_size or 18.0,
+                )
                 placeholders.append(
                     PlaceholderInfo(
                         idx=ph.placeholder_format.idx,
@@ -74,6 +130,9 @@ def parse_template(file_path: str, template_id: str | None = None) -> TemplateMa
                         top=ph.top,
                         width=ph.width,
                         height=ph.height,
+                        estimated_max_lines=max_lines,
+                        estimated_max_words=max_words,
+                        **fmt,
                     )
                 )
             layouts.append(

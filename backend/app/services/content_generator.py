@@ -19,8 +19,18 @@ MODEL = "gpt-4o"
 _SKIP_PLACEHOLDER_TYPES = {"DATE", "FOOTER", "SLIDE_NUMBER", "HEADER"}
 
 
+EMU_PER_INCH = 914400
+
+
+def _emu_to_inches(emu: int | None) -> str:
+    """Convert EMU to a readable inches string."""
+    if emu is None:
+        return "?"
+    return f"{emu / EMU_PER_INCH:.1f}\""
+
+
 def _build_layout_description(manifest: TemplateManifest) -> str:
-    """Build a human-readable description of available layouts, filtering out auto-filled placeholders."""
+    """Build a human-readable description of available layouts with spatial and capacity info."""
     lines = []
     for master in manifest.masters:
         for layout in master.layouts:
@@ -32,12 +42,71 @@ def _build_layout_description(manifest: TemplateManifest) -> str:
                 continue
             ph_desc = []
             for ph in content_phs:
-                ph_desc.append(f"  - idx={ph.idx}, name=\"{ph.name}\", type={ph.type}")
+                size_str = f"{_emu_to_inches(ph.width)} x {_emu_to_inches(ph.height)}"
+                parts = [
+                    f"idx={ph.idx}",
+                    f"name=\"{ph.name}\"",
+                    f"type={ph.type}",
+                    f"size={size_str}",
+                ]
+                if ph.estimated_max_words:
+                    parts.append(f"max_words={ph.estimated_max_words}")
+                if ph.estimated_max_lines:
+                    parts.append(f"max_lines={ph.estimated_max_lines}")
+                if ph.default_font_name:
+                    parts.append(f"font=\"{ph.default_font_name}\"")
+                if ph.default_font_size_pt:
+                    parts.append(f"font_size={ph.default_font_size_pt:.0f}pt")
+                ph_desc.append(f"  - {', '.join(parts)}")
             lines.append(
                 f"Layout index {layout.index}: \"{layout.name}\"\n"
                 f"  Placeholders:\n" + "\n".join(ph_desc)
             )
     return "\n\n".join(lines)
+
+
+def _build_design_context(manifest: TemplateManifest) -> str:
+    """Build a design context string from template metadata."""
+    parts = []
+
+    # Slide dimensions
+    w = manifest.slide_width_emu / EMU_PER_INCH
+    h = manifest.slide_height_emu / EMU_PER_INCH
+    ratio = "16:9" if abs(w / h - 16 / 9) < 0.1 else "4:3" if abs(w / h - 4 / 3) < 0.1 else f"{w:.1f}:{h:.1f}"
+    parts.append(f"Slide dimensions: {w:.1f}\" x {h:.1f}\" ({ratio})")
+
+    # Collect fonts and sizes from placeholders
+    fonts = set()
+    title_size = None
+    body_size = None
+    for master in manifest.masters:
+        for layout in master.layouts:
+            for ph in layout.placeholders:
+                if ph.default_font_name:
+                    fonts.add(ph.default_font_name)
+                if ph.default_font_size_pt:
+                    if ph.type in ("TITLE", "CENTER_TITLE"):
+                        title_size = ph.default_font_size_pt
+                    elif ph.type in ("BODY", "OBJECT", "SUBTITLE"):
+                        body_size = ph.default_font_size_pt
+
+    if fonts:
+        parts.append(f"Fonts: {', '.join(sorted(fonts))}")
+    if title_size:
+        parts.append(f"Title size: {title_size:.0f}pt")
+    if body_size:
+        parts.append(f"Body size: {body_size:.0f}pt")
+
+    # Theme colors
+    if manifest.theme_colors:
+        color_samples = []
+        for key in ("dk1", "accent1", "accent2", "lt1"):
+            if key in manifest.theme_colors:
+                color_samples.append(f"{key}=#{manifest.theme_colors[key]}")
+        if color_samples:
+            parts.append(f"Theme colors: {', '.join(color_samples)}")
+
+    return "\n".join(parts)
 
 
 def _build_example() -> str:
@@ -141,13 +210,15 @@ def generate_outline(
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
     layout_desc = _build_layout_description(manifest)
+    design_ctx = _build_design_context(manifest)
     example = _build_example()
 
     system_prompt = (
         "You are a presentation design expert. You create well-structured, "
-        "professional presentations.\n\n"
+        "professional presentations that respect template constraints.\n\n"
         "You MUST respond with ONLY valid JSON matching the exact format shown in the example below. "
         "No markdown, no explanation, just JSON.\n\n"
+        f"TEMPLATE DESIGN CONTEXT:\n{design_ctx}\n\n"
         "AVAILABLE LAYOUTS AND THEIR PLACEHOLDERS:\n"
         f"{layout_desc}\n\n"
         "RULES:\n"
@@ -159,6 +230,14 @@ def generate_outline(
         "- Only use placeholder idx values that exist in the chosen layout.\n"
         "- Include 'speaker_notes' for each slide.\n"
         "- Choose layouts that best fit the content.\n\n"
+        "CONTENT DENSITY RULES:\n"
+        "- TITLE/CENTER_TITLE placeholders: 1-8 words. Short and punchy, no periods.\n"
+        "- SUBTITLE placeholders: 5-20 words. One sentence max.\n"
+        "- BODY/OBJECT placeholders: NEVER exceed the max_words shown for that placeholder.\n"
+        "  - Each bullet point: 1-2 lines max.\n"
+        "  - Aim for 60-80% of the max_words capacity.\n"
+        "  - Use level 0 for main points, level 1 for supporting details.\n"
+        "- If a placeholder has a small max_words (under 30), use very concise text.\n\n"
         f"EXAMPLE OUTPUT FORMAT:\n{example}"
     )
 
@@ -166,6 +245,7 @@ def generate_outline(
         f"Create a {num_slides}-slide presentation outline about: {topic}\n\n"
         "Generate an outline with appropriate titles and key points for each slide. "
         "Pick the most suitable layout for each slide's content. "
+        "Respect the max_words capacity of each placeholder. "
         "Respond with ONLY the JSON."
     )
 
@@ -190,25 +270,35 @@ def generate_slide_content(
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
     layout_desc = _build_layout_description(manifest)
+    design_ctx = _build_design_context(manifest)
     outline_json = outline.model_dump_json(indent=2)
     example = _build_example()
 
     system_prompt = (
         "You are a presentation content expert. You take outlines and create "
-        "detailed, engaging slide content.\n\n"
+        "detailed, engaging slide content that fits within template constraints.\n\n"
         "You MUST respond with ONLY valid JSON matching the exact format shown in the example below. "
         "No markdown, no explanation, just JSON.\n\n"
+        f"TEMPLATE DESIGN CONTEXT:\n{design_ctx}\n\n"
         "AVAILABLE LAYOUTS AND THEIR PLACEHOLDERS:\n"
         f"{layout_desc}\n\n"
         "RULES:\n"
         "- Keep the same layout_index choices from the outline.\n"
         "- Placeholder keys MUST be string versions of the idx values (e.g., \"0\", \"1\").\n"
         "- Each placeholder value MUST be an object with 'type' and 'paragraphs'.\n"
-        "- Expand bullet points into clear, concise content.\n"
+        "- Expand bullet points into clear, engaging content.\n"
         "- Add speaker_notes for each slide with talking points.\n"
         "- Use bold: true for emphasis on key terms.\n"
-        "- Keep text concise - presentations should not have walls of text.\n"
         "- Use paragraph levels (0 = main point, 1 = sub-point) for hierarchy.\n\n"
+        "CONTENT DENSITY RULES (CRITICAL):\n"
+        "- TITLE/CENTER_TITLE placeholders: 1-8 words. Short and punchy, no periods.\n"
+        "- SUBTITLE placeholders: 5-20 words. One sentence max.\n"
+        "- BODY/OBJECT placeholders: NEVER exceed the max_words shown for that placeholder.\n"
+        "  - Each bullet point: 1-2 lines max.\n"
+        "  - Aim for 60-80% of the max_words capacity.\n"
+        "  - Use level 0 for main points, level 1 for supporting details.\n"
+        "- If a placeholder has a small max_words (under 30), use very concise text.\n"
+        "- Text that overflows a placeholder looks broken. Always stay within capacity.\n\n"
         f"EXAMPLE OUTPUT FORMAT:\n{example}"
     )
 
@@ -216,8 +306,8 @@ def generate_slide_content(
         f"Topic: {topic}\n\n"
         f"Here is the outline to expand into full slide content:\n{outline_json}\n\n"
         "Generate detailed content for every slide, filling all placeholders with "
-        "engaging, professional content. Include speaker_notes. "
-        "Respond with ONLY the JSON."
+        "engaging, professional content. Respect the max_words capacity of each placeholder. "
+        "Include speaker_notes. Respond with ONLY the JSON."
     )
 
     response = client.chat.completions.create(
