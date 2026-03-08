@@ -174,7 +174,8 @@ async def run_pipeline(template_id: str, topic: str, num_slides: int) -> dict:
 
 
 async def run_pipeline_from_outline(
-    template_id: str, outline: PresentationContent
+    template_id: str, outline: PresentationContent,
+    reference_text: str | None = None,
 ) -> dict:
     """Run the pipeline starting from a provided outline (skip outline generation)."""
     _purge_stale_outputs()
@@ -184,7 +185,8 @@ async def run_pipeline_from_outline(
 
     # Generate detailed content from the outline
     content = await asyncio.to_thread(
-        generate_slide_content, topic, outline, manifest
+        generate_slide_content, topic, outline, manifest,
+        reference_text=reference_text,
     )
 
     # Analyze quality before assembly

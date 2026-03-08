@@ -17,6 +17,7 @@ export default function Home() {
   const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);
   const [repairedId, setRepairedId] = useState<string | null>(null);
   const [repairedQualityReport, setRepairedQualityReport] = useState<QualityReport | null>(null);
+  const [referenceText, setReferenceText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedFiles, setSavedFiles] = useState<{ presentation_id: string; filename: string }[]>([]);
@@ -50,12 +51,13 @@ export default function Home() {
     setStep("topic");
   };
 
-  const handleGenerateOutline = async (topic: string, numSlides: number) => {
+  const handleGenerateOutline = async (topic: string, numSlides: number, refText: string | null) => {
     if (!template) return;
+    setReferenceText(refText);
     setLoading(true);
     setError(null);
     try {
-      const result = await generateOutline(template.template_id, topic, numSlides);
+      const result = await generateOutline(template.template_id, topic, numSlides, refText);
       setOutline(result.outline);
       setStep("outline");
     } catch (e) {
@@ -70,7 +72,7 @@ export default function Home() {
     setStep("generating");
     setError(null);
     try {
-      const result = await generatePresentation(template.template_id, outline);
+      const result = await generatePresentation(template.template_id, outline, referenceText);
       setPresentationId(result.presentation_id);
       setQualityReport(result.quality_report ?? null);
       setRepairedId(result.repaired_id ?? null);
@@ -86,6 +88,7 @@ export default function Home() {
     setStep("template");
     setTemplate(null);
     setOutline(null);
+    setReferenceText(null);
     setPresentationId(null);
     setQualityReport(null);
     setRepairedId(null);
@@ -96,6 +99,7 @@ export default function Home() {
   const handleNewPresentation = () => {
     setStep("topic");
     setOutline(null);
+    setReferenceText(null);
     setPresentationId(null);
     setQualityReport(null);
     setRepairedId(null);

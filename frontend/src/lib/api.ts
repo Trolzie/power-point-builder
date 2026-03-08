@@ -49,15 +49,32 @@ export async function deleteTemplate(id: string): Promise<void> {
   if (!res.ok) throw new Error(await res.text());
 }
 
+export async function extractDocument(file: File): Promise<{ filename: string; text: string; char_count: number }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE}/api/generate/documents/extract`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function generateOutline(
   templateId: string,
   topic: string,
-  numSlides: number = 8
+  numSlides: number = 8,
+  referenceText?: string | null,
 ): Promise<{ outline: PresentationContent; template_id: string }> {
   const res = await fetch(`${API_BASE}/api/generate/outline`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ template_id: templateId, topic, num_slides: numSlides }),
+    body: JSON.stringify({
+      template_id: templateId,
+      topic,
+      num_slides: numSlides,
+      reference_text: referenceText || null,
+    }),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -65,12 +82,17 @@ export async function generateOutline(
 
 export async function generatePresentation(
   templateId: string,
-  outline: PresentationContent
+  outline: PresentationContent,
+  referenceText?: string | null,
 ): Promise<GeneratePresentationResponse> {
   const res = await fetch(`${API_BASE}/api/generate/presentation`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ template_id: templateId, outline }),
+    body: JSON.stringify({
+      template_id: templateId,
+      outline,
+      reference_text: referenceText || null,
+    }),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();

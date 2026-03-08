@@ -270,7 +270,8 @@ def _parse_json_response(content: str) -> PresentationContent:
 
 
 def generate_outline(
-    topic: str, manifest: TemplateManifest, num_slides: int
+    topic: str, manifest: TemplateManifest, num_slides: int,
+    reference_text: str | None = None,
 ) -> PresentationContent:
     """Generate a presentation outline using OpenAI."""
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -311,9 +312,20 @@ def generate_outline(
         f"EXAMPLE OUTPUT FORMAT:\n{example}"
     )
 
+    ref_section = ""
+    if reference_text:
+        ref_section = (
+            f"\n\nREFERENCE DOCUMENT:\n"
+            f"The following document has been provided as source material. "
+            f"Base the presentation content on this document, extracting key data, "
+            f"insights, and conclusions. Use specific numbers, facts, and quotes from it.\n\n"
+            f"---\n{reference_text}\n---\n"
+        )
+
     user_prompt = (
         f"Create a {num_slides}-slide presentation outline about: {topic}\n\n"
-        "Generate an outline with appropriate titles and key points for each slide. "
+        + (ref_section if reference_text else "")
+        + "Generate an outline with appropriate titles and key points for each slide. "
         "Pick the most suitable layout for each slide's content. "
         "Respect the max_words capacity of each placeholder. "
         "Respond with ONLY the JSON."
@@ -334,7 +346,8 @@ def generate_outline(
 
 
 def generate_slide_content(
-    topic: str, outline: PresentationContent, manifest: TemplateManifest
+    topic: str, outline: PresentationContent, manifest: TemplateManifest,
+    reference_text: str | None = None,
 ) -> PresentationContent:
     """Generate detailed slide content from an outline using OpenAI."""
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -375,9 +388,18 @@ def generate_slide_content(
         f"EXAMPLE OUTPUT FORMAT:\n{example}"
     )
 
+    ref_section = ""
+    if reference_text:
+        ref_section = (
+            f"\nREFERENCE DOCUMENT:\n"
+            f"Use specific data, numbers, facts, and insights from this document.\n\n"
+            f"---\n{reference_text}\n---\n\n"
+        )
+
     user_prompt = (
         f"Topic: {topic}\n\n"
-        f"Here is the outline to expand into full slide content:\n{outline_json}\n\n"
+        + ref_section
+        + f"Here is the outline to expand into full slide content:\n{outline_json}\n\n"
         "Generate detailed content for every slide, filling all placeholders with "
         "engaging, professional content. Respect the max_words capacity of each placeholder. "
         "Include speaker_notes. Respond with ONLY the JSON."

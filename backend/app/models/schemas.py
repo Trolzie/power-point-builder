@@ -8,6 +8,7 @@ class GenerateOutlineRequest(BaseModel):
     template_id: str
     topic: str
     num_slides: int = 8
+    reference_text: str | None = None
 
 
 class GenerateOutlineResponse(BaseModel):
@@ -18,6 +19,7 @@ class GenerateOutlineResponse(BaseModel):
 class GeneratePresentationRequest(BaseModel):
     template_id: str
     outline: PresentationContent
+    reference_text: str | None = None
 
 
 class GeneratePresentationResponse(BaseModel):

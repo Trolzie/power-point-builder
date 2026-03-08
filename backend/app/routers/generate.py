@@ -2,7 +2,7 @@ import asyncio
 import re
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile
 
 from app.config import settings
 from app.models.schemas import (
@@ -13,6 +13,7 @@ from app.models.schemas import (
 )
 from app.models.template import TemplateManifest
 from app.services.content_generator import generate_outline
+from app.services.document_extractor import extract_text
 from app.services.pipeline import run_pipeline_from_outline
 
 router = APIRouter(prefix="/api/generate", tags=["generate"])
@@ -31,6 +32,24 @@ def _load_manifest(template_id: str) -> TemplateManifest:
     return TemplateManifest.model_validate_json(manifest_path.read_text())
 
 
+@router.post("/documents/extract")
+async def extract_document(file: UploadFile):
+    """Extract text content from an uploaded document (PDF, DOCX, TXT)."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+    allowed = (".pdf", ".docx", ".txt", ".md")
+    if not any(file.filename.lower().endswith(ext) for ext in allowed):
+        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {', '.join(allowed)}")
+
+    data = await file.read()
+    try:
+        text = await asyncio.to_thread(extract_text, data, file.filename)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to extract text: {e}")
+
+    return {"filename": file.filename, "text": text, "char_count": len(text)}
+
+
 @router.post("/outline", response_model=GenerateOutlineResponse)
 async def create_outline(request: GenerateOutlineRequest):
     """Generate a presentation outline using AI."""
@@ -39,7 +58,8 @@ async def create_outline(request: GenerateOutlineRequest):
 
     try:
         outline = await asyncio.to_thread(
-            generate_outline, request.topic, manifest, request.num_slides
+            generate_outline, request.topic, manifest, request.num_slides,
+            reference_text=request.reference_text,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate outline: {e}")
@@ -56,7 +76,8 @@ async def create_presentation(request: GeneratePresentationRequest):
 
     try:
         result = await run_pipeline_from_outline(
-            request.template_id, request.outline
+            request.template_id, request.outline,
+            reference_text=request.reference_text,
         )
     except Exception as e:
         raise HTTPException(
