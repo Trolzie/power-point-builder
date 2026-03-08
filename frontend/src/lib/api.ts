@@ -1,6 +1,7 @@
 import {
   TemplateManifest,
   TemplateListItem,
+  LayoutConfig,
   PresentationContent,
   GeneratePresentationResponse,
 } from "@/types";
@@ -26,6 +27,19 @@ export async function listTemplates(): Promise<{ templates: TemplateListItem[] }
 
 export async function getTemplate(id: string): Promise<TemplateManifest> {
   const res = await fetch(`${API_BASE}/api/templates/${id}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function updateTemplate(
+  id: string,
+  data: { default_layouts?: number[] | null; layout_configs?: Record<string, LayoutConfig> | null }
+): Promise<TemplateManifest> {
+  const res = await fetch(`${API_BASE}/api/templates/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

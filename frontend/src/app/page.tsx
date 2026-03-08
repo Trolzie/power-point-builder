@@ -1,16 +1,16 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import TemplateUploader from "@/components/TemplateUploader";
+import TemplatePicker from "@/components/TemplatePicker";
 import TopicInput from "@/components/TopicInput";
 import OutlineEditor from "@/components/OutlineEditor";
 import QualityReportComponent from "@/components/QualityReport";
 import { TemplateManifest, PresentationContent, QualityReport, GeneratePresentationResponse } from "@/types";
 import { generateOutline, generatePresentation, getDownloadUrl, listPresentations, deletePresentation } from "@/lib/api";
 
-type Step = "upload" | "topic" | "outline" | "generating" | "done";
+type Step = "template" | "topic" | "outline" | "generating" | "done";
 
 export default function Home() {
-  const [step, setStep] = useState<Step>("upload");
+  const [step, setStep] = useState<Step>("template");
   const [template, setTemplate] = useState<TemplateManifest | null>(null);
   const [outline, setOutline] = useState<PresentationContent | null>(null);
   const [presentationId, setPresentationId] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export default function Home() {
     setSavedFiles([]);
   };
 
-  const handleTemplateUploaded = (manifest: TemplateManifest) => {
+  const handleTemplateReady = (manifest: TemplateManifest) => {
     setTemplate(manifest);
     setStep("topic");
   };
@@ -83,8 +83,18 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setStep("upload");
+    setStep("template");
     setTemplate(null);
+    setOutline(null);
+    setPresentationId(null);
+    setQualityReport(null);
+    setRepairedId(null);
+    setRepairedQualityReport(null);
+    setError(null);
+  };
+
+  const handleNewPresentation = () => {
+    setStep("topic");
     setOutline(null);
     setPresentationId(null);
     setQualityReport(null);
@@ -97,8 +107,8 @@ export default function Home() {
     <div className="space-y-8">
       {/* Progress indicator */}
       <div className="flex items-center gap-2 text-sm">
-        {["Upload Template", "Enter Topic", "Edit Outline", "Download"].map((label, i) => {
-          const steps: Step[] = ["upload", "topic", "outline", "done"];
+        {["Choose Template", "Enter Topic", "Edit Outline", "Download"].map((label, i) => {
+          const steps: Step[] = ["template", "topic", "outline", "done"];
           const stepIndex = steps.indexOf(step === "generating" ? "outline" : step);
           const isActive = i <= stepIndex;
           return (
@@ -118,11 +128,11 @@ export default function Home() {
         </div>
       )}
 
-      {/* Step: Upload */}
-      {step === "upload" && (
+      {/* Step: Template */}
+      {step === "template" && (
         <div>
-          <h2 className="text-lg font-semibold mb-4">Upload Your Template</h2>
-          <TemplateUploader onUploaded={handleTemplateUploaded} />
+          <h2 className="text-lg font-semibold mb-4">Choose Your Template</h2>
+          <TemplatePicker onTemplateReady={handleTemplateReady} />
         </div>
       )}
 
@@ -131,7 +141,15 @@ export default function Home() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">What&apos;s your presentation about?</h2>
-            <span className="text-sm text-gray-500">Template: {template.filename}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">Template: {template.filename}</span>
+              <button
+                onClick={() => setStep("template")}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Change
+              </button>
+            </div>
           </div>
           <TopicInput onSubmit={handleGenerateOutline} loading={loading} />
         </div>
@@ -204,10 +222,16 @@ export default function Home() {
               </a>
             )}
             <button
+              onClick={handleNewPresentation}
+              className="border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              New Presentation
+            </button>
+            <button
               onClick={handleReset}
               className="border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Create Another
+              Change Template
             </button>
           </div>
           {repairedId && qualityReport && repairedQualityReport ? (

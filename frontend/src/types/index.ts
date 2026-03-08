@@ -12,12 +12,23 @@ export interface LayoutInfo {
   index: number;
   name: string;
   placeholders: PlaceholderInfo[];
+  content_placeholder_count: number;
+  recommended: boolean;
+  preview_description: string | null;
 }
 
 export interface MasterInfo {
   index: number;
   name: string;
   layouts: LayoutInfo[];
+}
+
+export interface LayoutConfig {
+  role: string;
+  usage_hint: string | null;
+  style_notes: string | null;
+  max_uses: number | null;
+  enabled: boolean;
 }
 
 export interface TemplateManifest {
@@ -27,6 +38,8 @@ export interface TemplateManifest {
   slide_height_emu: number;
   theme_colors: Record<string, string>;
   masters: MasterInfo[];
+  default_layouts: number[] | null;
+  layout_configs: Record<string, LayoutConfig> | null;
 }
 
 export interface ParagraphContent {

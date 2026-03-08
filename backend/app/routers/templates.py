@@ -6,10 +6,18 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from app.config import settings
 from app.models.schemas import TemplateListItem, TemplateListResponse
-from app.models.template import TemplateManifest
+from app.models.template import LayoutConfig, TemplateManifest
+
+
+class UpdateTemplateRequest(BaseModel):
+    default_layouts: list[int] | None = None
+    layout_configs: dict[str, LayoutConfig] | None = None
+
+
 from app.services.template_parser import parse_template
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
@@ -94,6 +102,26 @@ async def get_template(template_id: str):
     if not manifest_path.exists():
         raise HTTPException(status_code=404, detail="Template not found")
     return TemplateManifest.model_validate_json(manifest_path.read_text())
+
+
+@router.patch("/{template_id}", response_model=TemplateManifest)
+async def update_template(template_id: str, body: UpdateTemplateRequest):
+    """Update template preferences (e.g. default_layouts)."""
+    _validate_id(template_id)
+    manifest_path = Path(settings.TEMPLATES_DIR) / f"{template_id}.json"
+    if not manifest_path.exists():
+        raise HTTPException(status_code=404, detail="Template not found")
+    manifest = TemplateManifest.model_validate_json(manifest_path.read_text())
+    if body.layout_configs is not None:
+        manifest.layout_configs = body.layout_configs
+        # Sync default_layouts from layout_configs for backward compat
+        manifest.default_layouts = [
+            int(idx) for idx, cfg in body.layout_configs.items() if cfg.enabled
+        ]
+    elif body.default_layouts is not None:
+        manifest.default_layouts = body.default_layouts
+    manifest_path.write_text(manifest.model_dump_json(indent=2))
+    return manifest
 
 
 @router.delete("/{template_id}")

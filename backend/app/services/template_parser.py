@@ -12,6 +12,8 @@ from app.models.template import (
 EMU_PER_PT = 12700
 AVG_CHARS_PER_WORD = 5.5
 
+SKIP_PLACEHOLDER_TYPES = {"DATE", "FOOTER", "SLIDE_NUMBER", "HEADER", "CHART", "TABLE", "VERTICAL_OBJECT", "VERTICAL_BODY"}
+
 
 def _extract_placeholder_formatting(ph) -> dict:
     """Extract default font formatting from a placeholder's first paragraph/run."""
@@ -135,11 +137,30 @@ def parse_template(file_path: str, template_id: str | None = None) -> TemplateMa
                         **fmt,
                     )
                 )
+            content_phs = [
+                ph for ph in placeholders
+                if ph.type not in SKIP_PLACEHOLDER_TYPES
+            ]
+            content_count = len(content_phs)
+            recommended = 1 <= content_count <= 8
+
+            # Build preview description like "1 title + 2 body + 1 image"
+            type_counts: dict[str, int] = {}
+            for ph in content_phs:
+                label = ph.type.lower()
+                type_counts[label] = type_counts.get(label, 0) + 1
+            preview = " + ".join(
+                f"{count} {label}" for label, count in type_counts.items()
+            ) if type_counts else None
+
             layouts.append(
                 LayoutInfo(
                     index=layout_idx,
                     name=layout.name,
                     placeholders=placeholders,
+                    content_placeholder_count=content_count,
+                    recommended=recommended,
+                    preview_description=preview,
                 )
             )
         masters.append(

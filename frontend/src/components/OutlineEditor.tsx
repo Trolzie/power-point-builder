@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { PresentationContent, LayoutInfo, SlideContent } from "@/types";
 
-const FILTERED_TYPES = ["DATE", "FOOTER", "SLIDE_NUMBER", "HEADER"];
+const FILTERED_TYPES = ["DATE", "FOOTER", "SLIDE_NUMBER", "HEADER", "CHART", "TABLE", "VERTICAL_OBJECT", "VERTICAL_BODY"];
 
 interface Props {
   outline: PresentationContent;

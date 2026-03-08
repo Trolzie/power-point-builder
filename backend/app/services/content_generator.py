@@ -30,17 +30,42 @@ def _emu_to_inches(emu: int | None) -> str:
     return f"{emu / EMU_PER_INCH:.1f}\""
 
 
+def _get_layout_config(manifest: TemplateManifest, layout_index: int):
+    """Get LayoutConfig for a layout, or None if not configured."""
+    if manifest.layout_configs:
+        return manifest.layout_configs.get(str(layout_index))
+    return None
+
+
+def _is_layout_enabled(manifest: TemplateManifest, layout_index: int) -> bool:
+    """Check if a layout is enabled via layout_configs or default_layouts."""
+    cfg = _get_layout_config(manifest, layout_index)
+    if cfg is not None:
+        return cfg.enabled
+    if manifest.default_layouts is not None:
+        return layout_index in manifest.default_layouts
+    return True  # no filtering configured
+
+
 def _build_layout_description(manifest: TemplateManifest) -> str:
-    """Build a human-readable description of available layouts with spatial and capacity info."""
+    """Build a human-readable description of available layouts with spatial, capacity, and config info."""
     lines = []
     for master in manifest.masters:
         for layout in master.layouts:
+            if not _is_layout_enabled(manifest, layout.index):
+                continue
             content_phs = [
                 ph for ph in layout.placeholders
                 if ph.type not in _SKIP_PLACEHOLDER_TYPES
             ]
             if not content_phs or len(content_phs) > 8:
                 continue
+
+            # Header with role annotation if configured
+            cfg = _get_layout_config(manifest, layout.index)
+            role_tag = f" [ROLE: {cfg.role}]" if cfg else ""
+            header = f"Layout index {layout.index}: \"{layout.name}\"{role_tag} ({len(content_phs)} content placeholders)"
+
             ph_desc = []
             for ph in content_phs:
                 size_str = f"{_emu_to_inches(ph.width)} x {_emu_to_inches(ph.height)}"
@@ -59,11 +84,47 @@ def _build_layout_description(manifest: TemplateManifest) -> str:
                 if ph.default_font_size_pt:
                     parts.append(f"font_size={ph.default_font_size_pt:.0f}pt")
                 ph_desc.append(f"  - {', '.join(parts)}")
-            lines.append(
-                f"Layout index {layout.index}: \"{layout.name}\" ({len(content_phs)} content placeholders)\n"
-                f"  Placeholders:\n" + "\n".join(ph_desc)
-            )
+
+            block = header + "\n  Placeholders:\n" + "\n".join(ph_desc)
+
+            # Append config annotations
+            if cfg:
+                if cfg.usage_hint:
+                    block += f"\n  USAGE: {cfg.usage_hint}"
+                if cfg.style_notes:
+                    block += f"\n  STYLE: {cfg.style_notes}"
+                if cfg.max_uses is not None:
+                    block += f"\n  MAX USES: {cfg.max_uses}"
+
+            lines.append(block)
     return "\n\n".join(lines)
+
+
+def _build_layout_rules(manifest: TemplateManifest) -> str:
+    """Build structured layout assignment rules from LayoutConfig roles."""
+    if not manifest.layout_configs:
+        return ""
+
+    rules = []
+    for idx_str, cfg in manifest.layout_configs.items():
+        if not cfg.enabled:
+            continue
+        parts = [f"Layout {idx_str} [{cfg.role}]"]
+        if cfg.role == "title":
+            parts.append("Use for the FIRST slide exactly once.")
+        elif cfg.role == "section_break":
+            parts.append("Use to introduce new major sections.")
+        elif cfg.role == "closing":
+            parts.append("Use for the LAST slide exactly once.")
+        elif cfg.usage_hint:
+            parts.append(cfg.usage_hint)
+        if cfg.max_uses is not None:
+            parts.append(f"May be used at most {cfg.max_uses} time{'s' if cfg.max_uses != 1 else ''}.")
+        rules.append("- " + " ".join(parts))
+
+    if not rules:
+        return ""
+    return "LAYOUT ASSIGNMENT RULES:\n" + "\n".join(rules)
 
 
 def _build_design_context(manifest: TemplateManifest) -> str:
@@ -216,6 +277,7 @@ def generate_outline(
 
     layout_desc = _build_layout_description(manifest)
     design_ctx = _build_design_context(manifest)
+    layout_rules = _build_layout_rules(manifest)
     example = _build_example()
 
     system_prompt = (
@@ -226,7 +288,8 @@ def generate_outline(
         f"TEMPLATE DESIGN CONTEXT:\n{design_ctx}\n\n"
         "AVAILABLE LAYOUTS AND THEIR PLACEHOLDERS:\n"
         f"{layout_desc}\n\n"
-        "RULES:\n"
+        + (f"{layout_rules}\n\n" if layout_rules else "")
+        + "RULES:\n"
         "- layout_index values MUST match one of the available layout indices above.\n"
         "- Placeholder keys in the 'placeholders' dict MUST be string versions of the idx values "
         "from that layout's placeholders (e.g., \"0\", \"1\").\n"
@@ -278,6 +341,7 @@ def generate_slide_content(
 
     layout_desc = _build_layout_description(manifest)
     design_ctx = _build_design_context(manifest)
+    layout_rules = _build_layout_rules(manifest)
     outline_json = outline.model_dump_json(indent=2)
     example = _build_example()
 
@@ -289,7 +353,8 @@ def generate_slide_content(
         f"TEMPLATE DESIGN CONTEXT:\n{design_ctx}\n\n"
         "AVAILABLE LAYOUTS AND THEIR PLACEHOLDERS:\n"
         f"{layout_desc}\n\n"
-        "RULES:\n"
+        + (f"{layout_rules}\n\n" if layout_rules else "")
+        + "RULES:\n"
         "- Keep the same layout_index choices from the outline.\n"
         "- Placeholder keys MUST be string versions of the idx values (e.g., \"0\", \"1\").\n"
         "- Each placeholder value MUST be an object with 'type' (\"text\" for text placeholders, \"image\" for PICTURE placeholders).\n"

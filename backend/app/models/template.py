@@ -1,6 +1,14 @@
 from pydantic import BaseModel
 
 
+class LayoutConfig(BaseModel):
+    role: str = "content"  # title | section_break | content | content_with_image | comparison | closing | blank | other
+    usage_hint: str | None = None
+    style_notes: str | None = None
+    max_uses: int | None = None  # 1 = at most once, None = unlimited
+    enabled: bool = True
+
+
 class PlaceholderInfo(BaseModel):
     idx: int
     name: str | None = None
@@ -24,6 +32,9 @@ class LayoutInfo(BaseModel):
     index: int
     name: str
     placeholders: list[PlaceholderInfo]
+    content_placeholder_count: int = 0
+    recommended: bool = False
+    preview_description: str | None = None
 
 
 class MasterInfo(BaseModel):
@@ -39,3 +50,5 @@ class TemplateManifest(BaseModel):
     slide_height_emu: int
     theme_colors: dict[str, str]
     masters: list[MasterInfo]
+    default_layouts: list[int] | None = None
+    layout_configs: dict[str, LayoutConfig] | None = None
