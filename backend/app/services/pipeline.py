@@ -6,12 +6,11 @@ from pathlib import Path
 from uuid import uuid4
 
 import httpx
-from openai import OpenAI
 
 from app.config import settings
 from app.models.presentation import PresentationContent
 from app.models.template import TemplateManifest
-from app.services.content_generator import generate_outline, generate_slide_content, repair_slide_content
+from app.services.content_generator import generate_outline, generate_slide_content, repair_slide_content, get_openai_client
 from app.services.quality_analyzer import analyze_quality
 from app.services.slide_assembler import assemble_presentation
 
@@ -28,8 +27,7 @@ def _load_manifest(template_id: str) -> TemplateManifest:
 
 def _generate_single_image(prompt: str) -> str:
     """Generate a single image via DALL-E 3 and download to a temp file."""
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    response = client.images.generate(
+    response = get_openai_client().images.generate(
         model="dall-e-3",
         prompt=prompt,
         size="1024x1024",

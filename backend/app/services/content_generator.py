@@ -5,6 +5,7 @@ from openai import OpenAI
 
 from app.config import settings
 from app.models.presentation import (
+
     ParagraphContent,
     PlaceholderContent,
     PresentationContent,
@@ -16,6 +17,15 @@ from app.models.template import TemplateManifest
 logger = logging.getLogger(__name__)
 
 MODEL = "gpt-4o"
+
+_client: OpenAI | None = None
+
+
+def get_openai_client() -> OpenAI:
+    global _client
+    if _client is None:
+        _client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=60)
+    return _client
 
 _SKIP_PLACEHOLDER_TYPES = {"DATE", "FOOTER", "SLIDE_NUMBER", "HEADER", "CHART", "TABLE", "VERTICAL_OBJECT", "VERTICAL_BODY"}
 
@@ -274,7 +284,7 @@ def generate_outline(
     reference_text: str | None = None,
 ) -> PresentationContent:
     """Generate a presentation outline using OpenAI."""
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_openai_client()
 
     layout_desc = _build_layout_description(manifest)
     design_ctx = _build_design_context(manifest)
@@ -350,7 +360,7 @@ def generate_slide_content(
     reference_text: str | None = None,
 ) -> PresentationContent:
     """Generate detailed slide content from an outline using OpenAI."""
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_openai_client()
 
     layout_desc = _build_layout_description(manifest)
     design_ctx = _build_design_context(manifest)
@@ -447,7 +457,7 @@ def repair_slide_content(
     if not issues_desc:
         return content
 
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_openai_client()
     layout_desc = _build_layout_description(manifest)
     content_json = content.model_dump_json(indent=2)
     example = _build_example()
