@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { PresentationContent, LayoutInfo, SlideContent } from "@/types";
+import LayoutPreview from "@/components/LayoutPreview";
 
 const FILTERED_TYPES = ["DATE", "FOOTER", "SLIDE_NUMBER", "HEADER", "CHART", "TABLE", "VERTICAL_OBJECT", "VERTICAL_BODY"];
 
@@ -8,6 +9,8 @@ interface Props {
   outline: PresentationContent;
   onChange: (updated: PresentationContent) => void;
   layouts: LayoutInfo[];
+  slideWidth: number;
+  slideHeight: number;
 }
 
 function moveSlide(outline: PresentationContent, from: number, to: number): PresentationContent {
@@ -45,7 +48,7 @@ function addSlide(outline: PresentationContent, layout: LayoutInfo): Presentatio
   return { ...outline, slides: [...outline.slides, newSlide] };
 }
 
-export default function OutlineEditor({ outline, onChange, layouts }: Props) {
+export default function OutlineEditor({ outline, onChange, layouts, slideWidth, slideHeight }: Props) {
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
 
   const updateParagraphText = (slideIndex: number, phIdx: string, paraIndex: number, text: string) => {
@@ -68,14 +71,26 @@ export default function OutlineEditor({ outline, onChange, layouts }: Props) {
         onChange={(e) => onChange({ ...outline, title: e.target.value })}
         className="font-semibold text-lg w-full bg-transparent border border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none rounded px-2 py-1 -ml-2 transition-colors"
       />
-      {outline.slides.map((slide, i) => (
+      {outline.slides.map((slide, i) => {
+        const layout = layouts.find((l) => l.index === slide.layout_index);
+        return (
         <div key={i} className="border rounded-lg p-3 bg-gray-50">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-              {slide.layout_name}
-            </span>
-            <span className="text-xs text-gray-400">Slide {i + 1}</span>
-            <div className="ml-auto flex items-center gap-1">
+          <div className="flex items-start gap-3 mb-1">
+            {layout && (
+              <LayoutPreview
+                placeholders={layout.placeholders}
+                slideWidth={slideWidth}
+                slideHeight={slideHeight}
+                width={80}
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                  {slide.layout_name}
+                </span>
+                <span className="text-xs text-gray-400">Slide {i + 1}</span>
+                <div className="ml-auto flex items-center gap-1">
               <button
                 onClick={() => onChange(moveSlide(outline, i, i - 1))}
                 disabled={i === 0}
@@ -131,8 +146,11 @@ export default function OutlineEditor({ outline, onChange, layouts }: Props) {
               )}
             </div>
           ))}
+            </div>
+          </div>
         </div>
-      ))}
+      );
+      })}
 
       {/* Add Slide */}
       <div className="relative">

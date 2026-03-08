@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { uploadTemplate, listTemplates, getTemplate, updateTemplate, deleteTemplate } from "@/lib/api";
-import { TemplateManifest, TemplateListItem, LayoutInfo, LayoutConfig, PlaceholderInfo } from "@/types";
+import { TemplateManifest, TemplateListItem, LayoutInfo, LayoutConfig } from "@/types";
+import LayoutPreview from "@/components/LayoutPreview";
 
 const FILTERED_TYPES = ["DATE", "FOOTER", "SLIDE_NUMBER", "HEADER", "CHART", "TABLE", "VERTICAL_OBJECT", "VERTICAL_BODY"];
 
@@ -326,53 +327,6 @@ export default function TemplatePicker({ onTemplateReady }: Props) {
               </div>
             ))}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Structural preview: renders placeholder positions as colored rectangles
-function LayoutPreview({
-  placeholders,
-  slideWidth,
-  slideHeight,
-}: {
-  placeholders: PlaceholderInfo[];
-  slideWidth: number;
-  slideHeight: number;
-}) {
-  const contentPhs = placeholders.filter((p) => !FILTERED_TYPES.includes(p.type));
-
-  const phColor = (type: string) => {
-    if (["TITLE", "CENTER_TITLE", "SUBTITLE"].includes(type)) return "bg-blue-300/70";
-    if (type === "PICTURE") return "bg-green-300/70";
-    return "bg-gray-300/70";
-  };
-
-  return (
-    <div
-      className="relative bg-white border border-gray-200 rounded overflow-hidden flex-shrink-0"
-      style={{ width: 120, height: 120 * (slideHeight / slideWidth) }}
-    >
-      {contentPhs.map((ph, i) => {
-        if (ph.left == null || ph.top == null || ph.width == null || ph.height == null) return null;
-        return (
-          <div
-            key={i}
-            className={`absolute rounded-sm ${phColor(ph.type)}`}
-            style={{
-              left: `${(ph.left / slideWidth) * 100}%`,
-              top: `${(ph.top / slideHeight) * 100}%`,
-              width: `${(ph.width / slideWidth) * 100}%`,
-              height: `${(ph.height / slideHeight) * 100}%`,
-            }}
-          />
-        );
-      })}
-      {contentPhs.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400">
-          Empty
         </div>
       )}
     </div>

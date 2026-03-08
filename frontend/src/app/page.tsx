@@ -179,6 +179,8 @@ export default function Home() {
             outline={outline}
             onChange={setOutline}
             layouts={template?.masters.flatMap(m => m.layouts) ?? []}
+            slideWidth={template?.slide_width_emu ?? 12192000}
+            slideHeight={template?.slide_height_emu ?? 6858000}
           />
         </div>
       )}
