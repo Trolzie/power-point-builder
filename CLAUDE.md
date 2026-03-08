@@ -16,38 +16,46 @@ backend/
   app/
     config.py              # Pydantic Settings (OPENAI_API_KEY, dirs)
     main.py                # FastAPI app, CORS, lifespan, health endpoint
+    utils.py               # Shared utilities (validate_id)
     models/
-      template.py          # TemplateManifest, PlaceholderInfo, LayoutInfo
+      template.py          # TemplateManifest, PlaceholderInfo, LayoutInfo, LayoutConfig
       presentation.py      # PresentationContent, SlideContent, PlaceholderContent
       schemas.py           # API request/response schemas
+      quality.py           # QualityReport for content validation
     routers/
-      templates.py         # POST upload, GET list, GET by id, DELETE
-      generate.py          # POST outline, POST presentation
+      templates.py         # POST upload, GET list, GET/PATCH by id, DELETE
+      generate.py          # POST outline, POST presentation, POST document extract
       presentations.py     # GET list, GET download, DELETE
     services/
       template_parser.py   # .pptx -> TemplateManifest (layouts, placeholders, theme colors)
-      content_generator.py # OpenAI GPT-4o: outline + per-slide content via JSON mode
+      content_generator.py # OpenAI GPT-4o: outline + per-slide content + repair via JSON mode
+      document_extractor.py # PDF/DOCX/TXT text extraction for reference documents
+      quality_analyzer.py  # Validates generated content against template constraints
       slide_assembler.py   # python-pptx: fill placeholders, preserve formatting
-      pipeline.py          # Orchestrates: parse -> outline -> content -> assemble
+      pipeline.py          # Orchestrates: outline -> content -> quality -> images -> assemble
   .env                     # OPENAI_API_KEY (not committed)
 
 frontend/
   src/
     app/page.tsx           # Main wizard: upload -> topic -> outline -> generate -> download
     components/
-      TemplateUploader.tsx  # Drag-and-drop .pptx/.potx upload
-      TopicInput.tsx        # Topic + slide count input
-      OutlineEditor.tsx     # Read-only outline display (editable in future)
+      TemplatePicker.tsx    # Template selection + drag-and-drop .pptx/.potx upload
+      TopicInput.tsx        # Topic + slide count + reference document upload
+      OutlineEditor.tsx     # Editable outline with layout preview thumbnails
+      LayoutPreview.tsx     # SVG thumbnail previews of slide layouts
+      QualityReport.tsx     # Display quality analysis results
     lib/api.ts             # API client (uses NEXT_PUBLIC_API_URL)
     types/index.ts         # TypeScript types matching backend schemas
 ```
 
-## Generation Pipeline (4 stages)
+## Generation Pipeline (6 stages)
 
 1. **Template Introspection** — parse .pptx into manifest (layouts, placeholders with idx/type/dimensions)
-2. **Outline Generation** — GPT-4o picks layouts, generates titles + key points
+2. **Outline Generation** — GPT-4o picks layouts, generates titles + key points (optionally using reference document text)
 3. **Content Generation** — GPT-4o expands outline into full placeholder content with speaker notes
-4. **PPTX Assembly** — python-pptx loads template, removes existing slides, creates new ones from layouts, fills placeholders preserving run-level formatting
+4. **Quality Analysis** — validates content against template constraints (overflow, empty placeholders, etc.)
+5. **Repair Pass** — if quality issues found, GPT-4o fixes them in a targeted call
+6. **PPTX Assembly** — generates DALL-E images for picture placeholders, then python-pptx fills all placeholders preserving run-level formatting
 
 ## Key Technical Decisions
 
@@ -56,7 +64,10 @@ frontend/
 - **Formatting preservation** — Slide assembler reuses existing paragraph runs (font, size, color) and removes extras via XML manipulation rather than using `.text =` which destroys formatting.
 - **Existing slides removed** — Template slides are deleted before adding generated ones, preserving only layouts/masters.
 - **Path traversal protection** — All user-supplied IDs validated with regex `^[a-zA-Z0-9_-]+$`.
+- **OpenAI client singleton** — Lazy-initialized with 60s timeout to avoid rebuilding httpx connection pool per call. Thread-safe via httpx.
+- **Upload size limits** — 50 MB for templates, 10 MB for reference documents. Prevents OOM on Railway.
 - **Async thread offloading** — Blocking OpenAI calls wrapped in `asyncio.to_thread()` to avoid blocking the event loop.
+- **ID validation** — Shared `validate_id()` in `app/utils.py`, used by all routers.
 - **.potx conversion** — python-pptx can't open `.potx` files (different content type in `[Content_Types].xml`). On upload, `.potx` files are converted by patching the content type from `template.main+xml` to `presentation.main+xml` inside the zip, then saved as `.pptx`.
 
 ## Deployment
