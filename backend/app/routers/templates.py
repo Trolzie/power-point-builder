@@ -60,6 +60,8 @@ async def upload_template(file: UploadFile):
     template_path = templates_dir / f"{template_id}.pptx"
 
     content = await file.read()
+    if len(content) > 50 * 1024 * 1024:  # 50 MB
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 50 MB.")
 
     # Convert .potx to .pptx by patching the content type in [Content_Types].xml
     # python-pptx rejects .potx because it has a different main content type

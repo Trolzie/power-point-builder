@@ -42,6 +42,9 @@ async def extract_document(file: UploadFile):
         raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {', '.join(allowed)}")
 
     data = await file.read()
+    if len(data) > 10 * 1024 * 1024:  # 10 MB
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
+
     try:
         text = await asyncio.to_thread(extract_text, data, file.filename)
     except Exception as e:
