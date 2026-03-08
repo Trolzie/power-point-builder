@@ -1,5 +1,4 @@
 import asyncio
-import re
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -19,6 +18,7 @@ class UpdateTemplateRequest(BaseModel):
 
 
 from app.services.template_parser import parse_template
+from app.utils import validate_id
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
 
@@ -40,12 +40,6 @@ def _convert_potx_to_pptx(data: bytes) -> bytes:
                 )
             zout.writestr(item, content)
     return dst.getvalue()
-
-
-def _validate_id(id_str: str) -> str:
-    if not re.match(r'^[a-zA-Z0-9_-]+$', id_str):
-        raise HTTPException(status_code=400, detail="Invalid ID format")
-    return id_str
 
 
 @router.post("/upload", response_model=TemplateManifest)
@@ -99,7 +93,7 @@ async def list_templates():
 @router.get("/{template_id}", response_model=TemplateManifest)
 async def get_template(template_id: str):
     """Get the manifest for a specific template."""
-    _validate_id(template_id)
+    validate_id(template_id)
     manifest_path = Path(settings.TEMPLATES_DIR) / f"{template_id}.json"
     if not manifest_path.exists():
         raise HTTPException(status_code=404, detail="Template not found")
@@ -109,7 +103,7 @@ async def get_template(template_id: str):
 @router.patch("/{template_id}", response_model=TemplateManifest)
 async def update_template(template_id: str, body: UpdateTemplateRequest):
     """Update template preferences (e.g. default_layouts)."""
-    _validate_id(template_id)
+    validate_id(template_id)
     manifest_path = Path(settings.TEMPLATES_DIR) / f"{template_id}.json"
     if not manifest_path.exists():
         raise HTTPException(status_code=404, detail="Template not found")
@@ -129,7 +123,7 @@ async def update_template(template_id: str, body: UpdateTemplateRequest):
 @router.delete("/{template_id}")
 async def delete_template(template_id: str):
     """Delete a template and its manifest."""
-    _validate_id(template_id)
+    validate_id(template_id)
     templates_dir = Path(settings.TEMPLATES_DIR)
     template_path = templates_dir / f"{template_id}.pptx"
     manifest_path = templates_dir / f"{template_id}.json"

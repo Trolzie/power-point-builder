@@ -1,18 +1,12 @@
-import re
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.config import settings
+from app.utils import validate_id
 
 router = APIRouter(prefix="/api/presentations", tags=["presentations"])
-
-
-def _validate_id(id_str: str) -> str:
-    if not re.match(r'^[a-zA-Z0-9_-]+$', id_str):
-        raise HTTPException(status_code=400, detail="Invalid ID format")
-    return id_str
 
 
 @router.get("")
@@ -31,7 +25,7 @@ async def list_presentations():
 @router.get("/{presentation_id}/download")
 async def download_presentation(presentation_id: str):
     """Download a generated presentation."""
-    _validate_id(presentation_id)
+    validate_id(presentation_id)
     file_path = Path(settings.OUTPUT_DIR) / f"{presentation_id}.pptx"
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Presentation not found")
@@ -46,7 +40,7 @@ async def download_presentation(presentation_id: str):
 @router.delete("/{presentation_id}")
 async def delete_presentation(presentation_id: str):
     """Delete a generated presentation."""
-    _validate_id(presentation_id)
+    validate_id(presentation_id)
     file_path = Path(settings.OUTPUT_DIR) / f"{presentation_id}.pptx"
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Presentation not found")
