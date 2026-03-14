@@ -44,6 +44,10 @@ export async function updateTemplate(
   return res.json();
 }
 
+export function getTemplateDownloadUrl(id: string): string {
+  return `${API_BASE}/api/templates/${id}/download`;
+}
+
 export async function deleteTemplate(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/templates/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { uploadTemplate, listTemplates, getTemplate, updateTemplate, deleteTemplate } from "@/lib/api";
+import { uploadTemplate, listTemplates, getTemplate, updateTemplate, deleteTemplate, getTemplateDownloadUrl } from "@/lib/api";
 import { TemplateManifest, TemplateListItem, LayoutInfo, LayoutConfig } from "@/types";
 import LayoutPreview from "@/components/LayoutPreview";
 
@@ -318,6 +318,14 @@ export default function TemplatePicker({ onTemplateReady }: Props) {
                     <span className="text-sm text-gray-400 ml-2">Loading...</span>
                   )}
                 </button>
+                <a
+                  href={getTemplateDownloadUrl(t.template_id)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs text-blue-400 hover:text-blue-600 ml-3"
+                  download
+                >
+                  Download
+                </a>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.template_id); }}
                   className="text-xs text-red-400 hover:text-red-600 ml-3"

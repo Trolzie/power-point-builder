@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.config import settings
@@ -118,6 +119,31 @@ async def update_template(template_id: str, body: UpdateTemplateRequest):
         manifest.default_layouts = body.default_layouts
     manifest_path.write_text(manifest.model_dump_json(indent=2))
     return manifest
+
+
+@router.get("/{template_id}/download")
+async def download_template(template_id: str):
+    """Download the original .pptx template file."""
+    validate_id(template_id)
+    template_path = Path(settings.TEMPLATES_DIR) / f"{template_id}.pptx"
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    # Use the original filename from the manifest if available
+    filename = f"{template_id}.pptx"
+    manifest_path = Path(settings.TEMPLATES_DIR) / f"{template_id}.json"
+    if manifest_path.exists():
+        manifest = TemplateManifest.model_validate_json(manifest_path.read_text())
+        if manifest.filename:
+            filename = manifest.filename
+            if not filename.endswith(".pptx"):
+                filename = filename.rsplit(".", 1)[0] + ".pptx"
+
+    return FileResponse(
+        path=template_path,
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )
 
 
 @router.delete("/{template_id}")
