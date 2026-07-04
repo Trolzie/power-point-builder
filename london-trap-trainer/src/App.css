@@ -1,0 +1,314 @@
+.app {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+/* ---- header ---- */
+.app__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.app__title {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+.app__subtitle {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  max-width: 46ch;
+}
+.app__score {
+  flex: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ---- layout ---- */
+.app__main {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.app__sidebar {
+  position: sticky;
+  top: 16px;
+}
+.app__stage {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(280px, 360px);
+  gap: 20px;
+  align-items: start;
+}
+
+/* ---- trap picker ---- */
+.picker {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+}
+.picker__heading {
+  margin: 4px 8px 10px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+.picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.picker__item {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+}
+.picker__item:hover {
+  background: var(--bg-panel-2);
+}
+.picker__item.is-active {
+  background: var(--bg-panel-2);
+  border-color: var(--accent);
+}
+.picker__badge {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #0f1a2e;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.picker__badge.is-done {
+  background: var(--green-bg);
+  border-color: var(--green);
+  color: var(--green);
+}
+.picker__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.picker__name {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.picker__desc {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+.picker__stats {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+/* ---- board ---- */
+.board-wrap {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+/* ---- stage side column ---- */
+.stage__side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.stage__trapname h2 {
+  margin: 0 0 2px;
+  font-size: 1.1rem;
+}
+.stage__trapname p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* ---- feedback banner ---- */
+.feedback {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-height: 72px;
+  background: var(--bg-panel);
+}
+.feedback__icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.feedback__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.feedback__title {
+  font-size: 0.95rem;
+}
+.feedback__detail {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.feedback--green {
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+.feedback--green .feedback__icon {
+  background: var(--green);
+  color: #05210f;
+}
+.feedback--yellow {
+  border-color: var(--yellow);
+  background: var(--yellow-bg);
+}
+.feedback--yellow .feedback__icon {
+  background: var(--yellow);
+  color: #241c02;
+}
+.feedback--red {
+  border-color: var(--red);
+  background: var(--red-bg);
+}
+.feedback--red .feedback__icon {
+  background: var(--red);
+  color: #2a0808;
+}
+.feedback--info .feedback__icon,
+.feedback--neutral .feedback__icon {
+  background: var(--info-bg);
+  color: var(--info);
+}
+.feedback--info {
+  border-color: color-mix(in srgb, var(--info) 45%, var(--border));
+  background: var(--info-bg);
+}
+.feedback--neutral {
+  background: var(--neutral-bg);
+}
+
+/* ---- controls ---- */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.progress {
+  position: relative;
+  height: 22px;
+  border-radius: 999px;
+  background: #0f1a2e;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.progress__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #0ea5e9, #22c55e);
+  transition: width 0.35s ease;
+}
+.progress__label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.controls__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.controls__buttons button {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.controls__buttons button:hover:not(:disabled) {
+  background: var(--bg-panel-2);
+  border-color: var(--accent);
+}
+.controls__buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---- footer ---- */
+.app__footer {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  text-align: center;
+}
+.app__footer code {
+  color: var(--text);
+  background: var(--bg-panel);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+/* ---- responsive ---- */
+@media (max-width: 900px) {
+  .app__main {
+    grid-template-columns: 1fr;
+  }
+  .app__stage {
+    grid-template-columns: 1fr;
+  }
+  .app__sidebar {
+    position: static;
+  }
+}
